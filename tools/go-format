@@ -1,0 +1,15 @@
+#!/bin/sh
+# [Gedit Tool]
+# Name=Go Format
+# Shortcut=<Control>F5
+# Languages=go
+# Applicability=all
+# Output=replace-document
+# Input=document
+# Save-files=nothing
+
+tmp=`mktemp`
+cat > $tmp
+gofmt -spaces -tabindent -w $tmp 2>/dev/null
+cat $tmp
+rm -f $tmp

@@ -1,0 +1,45 @@
+#!/bin/bash
+# [Gedit Tool]
+# Name=Go Build
+# Shortcut=<Control>F9
+# Languages=go
+# Applicability=local
+# Output=output-panel
+# Input=nothing
+# Save-files=all
+
+
+get_topmost_makefile() {
+	dir=$1
+	while test "$dir" != "/"; do
+		makefile=`get_makefile $dir`
+		if [ "$makefile" != "" ]; then
+			topmost=$makefile
+		else
+			echo "$topmost"
+			exit
+		fi
+		dir=`dirname "$dir"`
+	done
+}
+
+get_makefile() {
+	dir=$1
+	for m in GNUmakefile makefile Makefile; do
+		if [ -f "${dir}/${m}" ]; then
+			echo "${dir}/${m}"
+			exit
+		fi
+	done
+}
+
+makefile=`get_topmost_makefile $GEDIT_CURRENT_DOCUMENT_DIR`
+if [ "$makefile" == "" ]; then
+	echo "No Makefile found!" > /dev/stderr
+	exit 1
+fi
+
+echo "Using makefile:"
+echo "$makefile"
+dir=`dirname "$makefile"`
+make -C "$dir" -s
