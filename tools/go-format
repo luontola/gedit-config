@@ -1,15 +1,89 @@
-#!/bin/sh
+#!/bin/bash
 # [Gedit Tool]
 # Name=Go Format
 # Shortcut=<Control>F5
 # Languages=go
 # Applicability=all
 # Output=replace-document
-# Input=document
-# Save-files=nothing
+# Input=nothing
+# Save-files=document
 
-tmp=`mktemp`
-cat > $tmp
-gofmt -spaces -tabindent -w $tmp 2>/dev/null
-cat $tmp
-rm -f $tmp
+
+# Go Format - Executes 'gofmt' against the Go source file
+#               in the current Gedit tab
+#    Manual - www.gohelp.wordpress.com - 'Gedit - An IDE for Go'
+#
+#   1.  If 'gofmt' has no errors,
+#           the formatted output is put in the Current Edit Tab.
+#   2.  If "gofmt" has errors,
+#           the original file is put in the Current Edit Tab and the
+#           error listing can either go to a New Tab or a Popup Window
+#
+#---------------------------------------------------------------------
+#   *Tool Settings: Save = Current Document, Input = Nothing,
+#                   OutPut = Replace Current Document
+#
+#OUTPUT=1   errors to New Tab
+#OUTPUT=2   errors to Popup Terminal
+#OUTPUT=3   errors to Popup Window
+#----------------------------------------------------------------------
+OUTPUT=3  # Set OUTPUT Switch
+
+DIR=$GEDIT_CURRENT_DOCUMENT_DIR
+DOCPATH="${GEDIT_CURRENT_DOCUMENT_PATH//%20/ }" # ex tool puts %20 for spaces
+
+if   ! ( test -z "$MyTemp" ) # if MyTemp exists in environment
+then
+    TMPDIR="${MyTemp}"
+else
+    TMPDIR="${DIR}"  # else set TMPDIR to current document directory
+fi
+
+gofmt "${DOCPATH}" 1> "${TMPDIR}"/GoFmt.tmp 2> "${TMPDIR}"/GoFmtErr.tmp
+
+if   (test -s "${TMPDIR}"/GoFmt.tmp) # TRUE if GoFmt.tmp exists and is not empty
+then
+    cat "${TMPDIR}"/GoFmt.tmp       # Show reformatted source in current tab
+    echo
+    echo "//   Reformatted by  "  $USERNAME "   "$(date) # Datetime stamp
+
+elif (test -s "${TMPDIR}"/GoFmtErr.tmp) # TRUE if GoFmtErr.tmp exists
+then
+    cat "${DOCPATH}"          # Show original file in current edit tab
+
+    case $OUTPUT in
+        1) gedit "${TMPDIR}"/GoFmtErr.tmp &
+           ;;
+        2) TermCmd="less \"${TMPDIR}\""/"GoFmtErr.tmp"
+           gnome-terminal --command "${TermCmd}" -t "Go Format ${TermCmd}" &
+           ;;
+        3) nLines=`wc -l "${TMPDIR}"/GoFmtErr.tmp|awk '{print $1}'`
+           if [ "${nLines}" -gt 28 ]
+           then
+               nLines=28
+           fi
+           zHeight=$(( nLines * 25 )) # Set width of Zenity window
+
+           longLine=`wc -L "${TMPDIR}"/GoFmtErr.tmp|awk '{print $1}'`
+           if [ "${longLine}" -gt 80 ]
+           then
+               longLine=80
+           fi
+           zWidth=$(( longLine * 9 )) # Set height of Zenity window
+
+           zenity --text-info \
+               --height=${zHeight} \
+               --width=${zWidth} \
+               --title="Go Format" \
+               --filename="${TMPDIR}"/GoFmtErr.tmp \ &
+           ;;
+        *) echo "Please Set Go Format OUTPUT option" > "${TMPDIR}"/GoFmtErr.tmp
+           gedit "${TMPDIR}"/GoFmtErr.tmp &
+    esac
+else
+	cat "${DOCPATH}"     # Show original file in current edit tab
+fi
+
+sleep 1     # make sure new shell tasks have displayed, then exit
+rm "${TMPDIR}"/GoFmt.tmp
+rm "${TMPDIR}"/GoFmtErr.tmp
